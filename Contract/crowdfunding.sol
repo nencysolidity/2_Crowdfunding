@@ -1,5 +1,5 @@
-//SPDX-License-Identifier: MIT
-pragma solidity 0.8.34;
+//SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.5.0 < 0.9.0;
 
 contract CrowdFunding{
 
@@ -30,11 +30,11 @@ contract CrowdFunding{
         manager=msg.sender;
     }
 
-    modifier onlyManger(){
+    modifier onlyManager(){
         require(msg.sender==manager,"Only manager can call this function");
         _;
     }
-    function createRequests(string memory _description,address payable _recipient,uint _value) public onlyManger{
+    function createRequests(string memory _description,address payable _recipient,uint _value) public onlyManager{
         Request storage newRequest = requests[numRequests];
         numRequests++;
         newRequest.description=_description;
@@ -62,7 +62,8 @@ contract CrowdFunding{
     function refund() public{
         require(block.timestamp>deadline && raisedAmount< target, "Refund Can Only Be Performed when Target has not been achieved");
         require(contributors[msg.sender]>0,"Only contributor can perform this action");
-        payable(msg.sender).transfer(contributors[msg.sender]);
+        (bool sent, ) = payable(msg.sender).call{value: contributors[msg.sender]}("");
+        require(sent, "Refund not possible");
         contributors[msg.sender]==0;
     }
      
@@ -75,13 +76,13 @@ contract CrowdFunding{
         thisRequest.noOfVoters++;
     }
 
-    function makePayment(uint _requestNo) public onlyManger{
+    function makePayment(uint _requestNo) public onlyManager{
         require(raisedAmount>=target,"Target is yet to reach.");
         Request storage thisRequest=requests[_requestNo];
         require(thisRequest.completed==false,"The request has been completed");
         require(thisRequest.noOfVoters > noOfContributors/2,"Majority does not support");
-        thisRequest.recipient.transfer(thisRequest.value);
+        (bool success, ) = thisRequest.recipient.call{value: thisRequest.value}("");
+        require(success, "Payment not done");
         thisRequest.completed=true;
     }
 }
-
